@@ -1,0 +1,417 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumerate}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage[hidelinks]{hyperref}
+\allowdisplaybreaks
+
+% Common mathematical notation.
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\F}{\mathbb{F}}
+
+% PeerFS-specific notation.
+\newcommand{\File}{\text{File}}
+\newcommand{\Path}{\text{Path}}
+\newcommand{\Tree}{\text{Tree}}
+\DeclareMathOperator{\fs}{fs}
+\DeclareMathOperator{\dir}{dir}
+\DeclareMathOperator{\sub}{sub}
+\DeclareMathOperator{\Reg}{Reg}
+\DeclareMathOperator{\canon}{canon}
+\DeclareMathOperator{\tgt}{tgt}
+\DeclareMathOperator{\dom}{dom}
+\newcommand{\Name}{\text{Name}}
+\newcommand{\Mode}{\text{Mode}}
+\newcommand{\Rd}{\mathsf{r}}
+\newcommand{\RW}{\mathsf{rw}}
+\newcommand{\PF}[1]{\textsf{PF#1}}
+
+% Theorem environments.
+\newtheoremstyle{definitionbreak}
+    {\topsep}
+    {\topsep}
+    {\normalfont}
+    {0pt}
+    {\bfseries}
+    {.}
+    {\newline}
+    {}
+
+\newtheoremstyle{plainbreak}
+    {\topsep}
+    {\topsep}
+    {\itshape}
+    {0pt}
+    {\bfseries}
+    {.}
+    {\newline}
+    {}
+
+\newtheoremstyle{remarkbreak}
+    {0.5\topsep}
+    {0.5\topsep}
+    {\normalfont}
+    {0pt}
+    {\itshape}
+    {.}
+    {\newline}
+    {}
+
+\theoremstyle{definitionbreak}
+\newtheorem{definition}{Definition}[section]
+
+\theoremstyle{plainbreak}
+\newtheorem{theorem}[definition]{Theorem}
+\newtheorem{proposition}[definition]{Proposition}
+\newtheorem{lemma}[definition]{Lemma}
+\newtheorem{corollary}[definition]{Corollary}
+
+\theoremstyle{remarkbreak}
+\newtheorem{remark}[definition]{Remark}
+\newtheorem{example}[definition]{Example}
+
+% Optional title block: uncomment \maketitle below to display it.
+\title{PeerFS Formalization}
+\author{Siddharth Mohanty}
+\date{\today}
+
+
+\begin{document}
+
+\maketitle
+
+This document formalizes the PeerFS control plane described in the README: ceilings, group
+rules, topologies, mount plans and pre-flight. It does not yet formalize the data plane or the
+consistency contract (Section~\ref{sec:open}).
+
+\section{Groups and filesystems}
+
+Let $N = \{n_1, n_2, \dots, n_k\}$ be the set of nodes in a group.
+
+\begin{definition}[Group]
+A \textbf{group} is $G = N \cup \{A\}$: the nodes $N$ together with an \textbf{authority} $A$
+(the server) that holds the group rules and compiles mount plans.
+\end{definition}
+
+\begin{remark}
+$A$ is a role, not necessarily a separate machine. A deployment may run the authority on one of
+the nodes (for example the homelab); nothing below depends on whether it does.
+\end{remark}
+
+\begin{definition}[Paths]
+Let $\Sigma$ be the set of path \emph{components}: non-empty names containing no \texttt{/},
+excluding \texttt{.} and \texttt{..}. A \textbf{path} is a finite word over $\Sigma$, so
+$\Path = \Sigma^*$, the empty word $\varepsilon$ is the root \texttt{/}, and $p \cdot q$ is
+concatenation. Write $p \preceq q$ when $p$ is a prefix of $q$ (``$q$ lies at or under $p$'').
+\end{definition}
+
+\begin{remark}
+$\preceq$ compares components, not characters. With $c = \texttt{/share}$, the path
+\texttt{/shared} is \emph{not} under $c$, although the string \texttt{"/share"} is a prefix of
+\texttt{"/shared"}. Implementations must check containment component-wise.
+\end{remark}
+
+\begin{lemma}\label{lem:prefix-chain}
+$\preceq$ is a partial order on $\Path$, and the prefixes of any single path form a chain: if
+$p \preceq x$ and $q \preceq x$, then $p \preceq q$ or $q \preceq p$.
+\end{lemma}
+
+\begin{proof}
+Reflexivity, antisymmetry and transitivity are immediate for prefixes of words. If $p$ and $q$
+are both prefixes of $x$, the shorter one is a prefix of the longer one, since both agree with
+$x$ on their common length.
+\end{proof}
+
+\begin{definition}[Filesystem of a node]\label{def:fs}
+Each node $n \in N$ has a \textbf{name tree} $F_n \subseteq \Path$: the set of paths that exist
+on $n$. It is prefix-closed (if $q \in F_n$ and $p \preceq q$ then $p \in F_n$), so
+$\varepsilon \in F_n$, and the graph $\Tree_n$ with vertices $F_n$ and an edge from $p$ to
+$p \cdot a$ for each $a \in \Sigma$ is a tree rooted at $\varepsilon$. For $n \in N$ define:
+\begin{enumerate}[(i)]
+    \item $\dir_n(p) = \{\, p \cdot a \in F_n : a \in \Sigma \,\}$, the entries of directory $p$;
+    \item $\sub_n(p) = \{\, q \in F_n : p \preceq q \,\}$, the subtree of $F_n$ rooted at $p$;
+    \item $\canon_n : \Path \rightharpoonup F_n$, the partial function resolving symbolic links,
+    undefined on paths that do not exist, dangle or loop. Symbolic links are leaves of
+    $\Tree_n$; $\canon_n$ is the identity on paths none of whose prefixes is a link.
+\end{enumerate}
+\end{definition}
+
+\begin{remark}
+$\Tree_n$ is a tree of \emph{names}. Symbolic links do not add edges; they are handled by
+$\canon_n$. Hard links give one file several names, possibly some inside and some outside a
+ceiling. A name-based ceiling cannot prevent this: a hard link placed under an exported path
+exports that file deliberately, just as copying it there would.
+\end{remark}
+
+\section{Ceilings}
+
+\begin{definition}[Ceiling and exportable region]
+Each node $n$ declares a \textbf{ceiling} $C(n) \subseteq \Path$, a finite set of paths. The
+default is $C(n) = \emptyset$. The \textbf{exportable region} of $n$ is
+\[
+    \Reg(n) = \bigcup_{c \in C(n)} \sub_n(c).
+\]
+\end{definition}
+
+\begin{remark}
+With the default ceiling, $\Reg(n) = \emptyset$: a node exports nothing until it lists paths.
+\end{remark}
+
+\begin{lemma}\label{lem:reg-upward}
+$\Reg(n)$ is closed downward in the tree: if $p \in \Reg(n)$, $x \in F_n$ and $p \preceq x$,
+then $x \in \Reg(n)$.
+\end{lemma}
+
+\begin{proof}
+Since $p \in \Reg(n)$ there is $c \in C(n)$ with $c \preceq p$. By transitivity $c \preceq x$,
+and $x \in F_n$, so $x \in \sub_n(c) \subseteq \Reg(n)$.
+\end{proof}
+
+\section{Group rules}
+
+\begin{definition}[Modes]
+$\Mode = \{\Rd, \RW\}$, ordered by $\Rd \sqsubset \RW$.
+\end{definition}
+
+\begin{definition}[Export]
+Let $\Name$ be a set of export names. An \textbf{export} is a tuple
+$e = (\nu_e, o_e, \pi_e, g_e)$ where
+\begin{enumerate}[(i)]
+    \item $\nu_e \in \Name$ is its name;
+    \item $o_e \in N$ is its \textbf{owner}, the node whose files it exposes;
+    \item $\pi_e \in \Path$ is the exported path on $o_e$;
+    \item $g_e : N \rightharpoonup \Mode$ is its \textbf{grant}, a finite partial function.
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Group rules]
+The \textbf{group rules} $R$ are the finite set of exports written by the administrator in
+\texttt{DISK-RULES.yaml} (or evaluated from Pkl). Names in $R$ are \emph{intended} to be unique,
+but $R$ is admin input and is not assumed well-formed; uniqueness is checked by pre-flight
+(\PF{1}).
+\end{definition}
+
+\begin{definition}[Granted exports]
+For a mounter $m \in N$, its \textbf{granted exports} are
+$E_m = \{\, e \in R : m \in \dom g_e \,\}$.
+\end{definition}
+
+\section{Topologies}
+
+Let $\Path_m$ denote the absolute, normalized local paths of mounter $m$ (with \texttt{\textasciitilde}
+expanded); $\preceq$ is defined on them as on $\Path$.
+
+\begin{definition}[Topology]
+A \textbf{topology} for mounter $m$ is a pair $T_m = (\rho_m, \lambda_m)$ where
+$\rho_m \in \Path_m$ is the \textbf{root} and $\lambda_m : \Name \rightharpoonup \Path_m$ is a
+finite partial \textbf{placement}. The \textbf{default topology} is
+$\tau_0 = (\texttt{/mnt/peerfs}, \emptyset)$.
+\end{definition}
+
+\begin{definition}[Targets]
+Given $T_m$, the \textbf{target} of a granted export $e \in E_m$ is
+\[
+    \tgt_m(e) =
+    \begin{cases}
+        \lambda_m(\nu_e) & \text{if } \nu_e \in \dom \lambda_m, \\
+        \rho_m \cdot \nu_e & \text{otherwise.}
+    \end{cases}
+\]
+\end{definition}
+
+\begin{definition}[Known topology]
+The authority holds, for each $m$, either a topology $T_m$ received from $m$ or $\bot$ when $m$
+was unreachable. Compilation uses $\hat T_m = T_m$ in the first case and $\hat T_m = \tau_0$ in
+the second, and in the second case marks the plan \textbf{stale}.
+\end{definition}
+
+\section{Mount plans and pre-flight}
+
+\begin{definition}[Mount plan]
+The \textbf{mount plan} of $m$, compiled by $A$ from $R$ and $\hat T_m$, is the set of entries
+\[
+    P_m = \{\, (\nu_e,\ o_e{:}\pi_e,\ \tgt_m(e),\ g_e(m)) : e \in E_m \,\},
+\]
+read as (export, source, target, mode).
+\end{definition}
+
+\begin{definition}[Pre-flight]\label{def:preflight}
+$P_m$ passes \textbf{pre-flight}, written $\mathrm{Valid}(P_m)$, if and only if all of the
+following hold.
+\begin{description}
+    \item[\PF{1} (unique names)] For all $e \in E_m$ and $e' \in R$ with $e \neq e'$,
+    $\nu_e \neq \nu_{e'}$.
+    \item[\PF{2} (ceiling)] For all $e \in E_m$, $\canon_{o_e}(\pi_e)$ is defined and lies in
+    $\Reg(o_e)$.
+    \item[\PF{3} (placement only)] $\dom \lambda_m \subseteq \{\, \nu_e : e \in E_m \,\}$.
+    \item[\PF{4} (targets)] The map $\tgt_m$ is injective on $E_m$, and its image is an
+    antichain under $\preceq$: for $e \neq e'$ in $E_m$, neither
+    $\tgt_m(e) \preceq \tgt_m(e')$ nor $\tgt_m(e') \preceq \tgt_m(e)$.
+\end{description}
+\end{definition}
+
+\begin{remark}
+\PF{2} is evaluated by the owner $o_e$ against its own $C(o_e)$, $F_{o_e}$ and $\canon_{o_e}$,
+not by $A$: a node does not trust the central configuration with its ceiling. A refusal is
+reported back to $A$, which then fails the affected plans. \PF{4} subsumes both
+``colliding'' (equal) and ``nested'' targets, and covers default placements under $\rho_m$ as
+well as explicit ones.
+\end{remark}
+
+\section{Properties}
+
+\subsection{Ceiling soundness}
+
+Pre-flight checks the exported path; serving must also check every path reached through it.
+
+\begin{definition}[Contained serving]\label{def:contained}
+An owner $n$ serves \textbf{contained} if, for every request on export $e$ with $o_e = n$ for a
+relative path $q \in \Path$, it serves the request only when $\canon_n(\pi_e \cdot q)$ is
+defined and $\canon_n(\pi_e) \preceq \canon_n(\pi_e \cdot q)$.
+\end{definition}
+
+\begin{theorem}[Ceiling soundness]\label{thm:ceiling}
+If $\mathrm{Valid}(P_m)$ and every owner serves contained, then every file $m$ reaches through
+an entry of $P_m$ lies in the exportable region of that entry's owner.
+\end{theorem}
+
+\begin{proof}
+Let the request be on $e \in E_m$ for relative path $q$, and let
+$x = \canon_{o_e}(\pi_e \cdot q)$. By containment $x$ is defined, so $x \in F_{o_e}$, and
+$\canon_{o_e}(\pi_e) \preceq x$. By \PF{2}, $\canon_{o_e}(\pi_e) \in \Reg(o_e)$. By
+Lemma~\ref{lem:reg-upward}, $x \in \Reg(o_e)$.
+\end{proof}
+
+\begin{remark}
+Containment is deliberately stronger than ``$x \in \Reg(o_e)$''. Consider a link inside
+the \texttt{media} export that points into \texttt{/home/user/share}. Its target stays inside the
+region, but following it would let a holder of \texttt{media} reach \texttt{notes} under
+\texttt{media}'s grant. Containment keeps each export inside its own subtree.
+\end{remark}
+
+\subsection{Grants are exact; topologies only place}
+
+\begin{theorem}[Grant faithfulness]\label{thm:grant}
+For every topology $\hat T_m$, the projection of $P_m$ onto (export, source, mode) is
+\[
+    \{\, (\nu_e,\ o_e{:}\pi_e,\ g_e(m)) : e \in E_m \,\},
+\]
+which depends only on $R$. In particular, no topology adds an export to $P_m$ or raises a mode
+above the grant.
+\end{theorem}
+
+\begin{proof}
+In the definition of $P_m$, $\hat T_m$ occurs only through $\tgt_m$, which is the target
+coordinate. The index set $E_m$ and the other three coordinates are functions of $R$ and $m$
+alone.
+\end{proof}
+
+\begin{corollary}
+Every entry of $P_m$ has mode exactly $g_e(m)$; a device granted $\Rd$ is never planned $\RW$.
+\end{corollary}
+
+\subsection{The local namespace is well-defined}
+
+\begin{theorem}[Unambiguous resolution]\label{thm:resolve}
+If $P_m$ satisfies \PF{4}, then every local path $x \in \Path_m$ lies under the target of at
+most one entry: there is at most one $e \in E_m$ with $\tgt_m(e) \preceq x$.
+\end{theorem}
+
+\begin{proof}
+Suppose $e \neq e'$ with $\tgt_m(e) \preceq x$ and $\tgt_m(e') \preceq x$. By
+Lemma~\ref{lem:prefix-chain} the two targets are comparable. If they are equal, $\tgt_m$ is not
+injective; otherwise one is a proper prefix of the other and the image is not an antichain.
+Either way \PF{4} fails.
+\end{proof}
+
+Under \PF{4}, then, $m$ resolves a local path $x$ by finding the unique $e$ with
+$\tgt_m(e) \preceq x$, writing $x = \tgt_m(e) \cdot q$, and requesting $q$ on $e$.
+
+\subsection{Failure isolation}
+
+\begin{theorem}[Isolation]\label{thm:isolation}
+$\mathrm{Valid}(P_m)$ depends only on $R$, on $\hat T_m$, and on $(F_n, C(n), \canon_n)$ for
+the owners $n$ of exports in $E_m$. In particular it does not depend on $\hat T_{m'}$ for any
+$m' \neq m$, so a bad topology fails only its own device's plan.
+\end{theorem}
+
+\begin{proof}
+By inspection of Definition~\ref{def:preflight}: \PF{1} reads $R$ and $E_m$; \PF{2} reads the
+owners' filesystems and ceilings; \PF{3} and \PF{4} read $\hat T_m$ and $E_m$. None reads another
+mounter's topology.
+\end{proof}
+
+\begin{corollary}
+Let $e \neq e'$ in $R$ with $\nu_e = \nu_{e'}$. The plans failing \PF{1} because of this pair
+are exactly those of the devices in $\dom g_e \cup \dom g_{e'}$. Likewise, an export $e$ whose
+path is outside its owner's ceiling fails \PF{2} in exactly the plans of $\dom g_e$.
+\end{corollary}
+
+\begin{proof}
+$e \in E_m$ if and only if $m \in \dom g_e$, and \PF{1} and \PF{2} quantify over $E_m$.
+\end{proof}
+
+\subsection{Admission}
+
+Let the rules and topologies change over time, and write $R^t$, $T^t_m$ and $P^t_m$ for their
+values at time $t$.
+
+\begin{definition}[Admission]
+Device $m$ is \textbf{admitted} to mount at time $t$ if it sends its topology $T^t_m$ to $A$, and
+$A$ compiles $P^t_m$ from $R^t$ and $T^t_m$ (not from $\tau_0$), and $\mathrm{Valid}(P^t_m)$
+holds. Plans are not cached: if $A$ is unreachable, $m$ is not admitted.
+\end{definition}
+
+\begin{proposition}[Fresh admission]\label{prop:fresh}
+If $m$ is admitted at time $t$, the mounts it establishes are exactly the entries of $P^t_m$,
+with modes $g^t_e(m)$ from the rules current at $t$ and targets from the topology $m$ actually
+holds. A stale plan is never mounted.
+\end{proposition}
+
+\begin{proof}
+Admission requires a plan compiled at $t$ from $R^t$ and from $T^t_m$ itself, so the stale flag
+is never set on an admitted plan. The modes follow from Theorem~\ref{thm:grant} applied to
+$R^t$.
+\end{proof}
+
+\begin{remark}[Gap: revocation of live mounts]
+Proposition~\ref{prop:fresh} constrains admission only. If $g_e(m)$ is lowered or removed at
+some $t' > t$, a mount admitted at $t$ is unaffected by the definitions so far. Refusing cached
+plans stops a device from \emph{re-mounting} with revoked access, not from \emph{keeping} a live
+mount. One way to close the gap: number rule versions, have $A$ push the current
+$g_e$ to each owner, and have the owner check $m \in \dom g_e$ and the requested operation
+against $g_e(m)$ on every request, as it already checks the ceiling. Then no request after the
+owner learns of the change exceeds the current grant, with exposure bounded by the propagation
+delay from $A$ to the owner.
+\end{remark}
+
+\begin{remark}[Overlapping exports]
+Pre-flight does not forbid two exports of the same owner with $\pi_e \preceq \pi_{e'}$. A file
+under $\pi_{e'}$ is then reachable through both, possibly with different modes, and the
+effective mode depends on which mount a program uses. Either forbid overlap in pre-flight (a
+\PF{5}) or accept per-path modes as intended behavior.
+\end{remark}
+
+\section{Open questions}\label{sec:open}
+
+\begin{enumerate}[(i)]
+    \item \textbf{Consistency contract.} The README defines a mount as having ``a defined
+    consistency contract'' but does not define one. The candidates (read-only exports,
+    one writer per export, advisory or mandatory locks with leases) differ in what happens when
+    a peer drops while holding a lock, and that is where the data-plane theorems would come
+    from.
+    \item \textbf{Data representation.} Copy-on-write, diffs, or whole binaries.
+    \item \textbf{Access-control primitives.} Groups and \texttt{extends} would replace $g_e$'s
+    domain $N$ with group expressions; Theorem~\ref{thm:grant} should survive if they are
+    expanded to $N$ before compilation.
+\end{enumerate}
+
+\end{document}
