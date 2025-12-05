@@ -255,6 +255,10 @@ following hold.
     \item[\PF{4} (targets)] The map $\tgt_m$ is injective on $E_m$, and its image is an
     antichain under $\preceq$: for $e \neq e'$ in $E_m$, neither
     $\tgt_m(e) \preceq \tgt_m(e')$ nor $\tgt_m(e') \preceq \tgt_m(e)$.
+    \item[\PF{5} (disjoint exports)] For all $e \in E_m$ and $e' \in R$ with $e \neq e'$
+    and $o_e = o_{e'}$, neither $\pi_e \preceq \pi_{e'}$ nor $\pi_{e'} \preceq \pi_e$.
+    In addition, whenever the owner approves both exports under \PF{2}, neither
+    $\canon_{o_e}(\pi_e) \preceq \canon_{o_e}(\pi_{e'})$ nor the reverse relation holds.
 \end{description}
 \end{definition}
 
@@ -263,7 +267,11 @@ following hold.
 not by $A$: a node does not trust the central configuration with its ceiling. A refusal is
 reported back to $A$, which then fails the affected plans. \PF{4} subsumes both
 ``colliding'' (equal) and ``nested'' targets, and covers default placements under $\rho_m$ as
-well as explicit ones.
+well as explicit ones. \PF{5} compares both declared paths and approved canonical roots, so aliases
+cannot conceal an overlap. A refused export has no approved canonical root and cannot occur in
+any valid plan; its declared path still participates in \PF{5}. Only devices granted an
+implicated export fail, including when they are not granted the other export. A lexical-only
+offline preview cannot establish the canonical part of \PF{5} and is not admission.
 \end{remark}
 
 \section{Properties}
@@ -345,7 +353,8 @@ $m' \neq m$, so a bad topology fails only its own device's plan.
 
 \begin{proof}
 By inspection of Definition~\ref{def:preflight}: \PF{1} reads $R$ and $E_m$; \PF{2} reads the
-owners' filesystems and ceilings; \PF{3} and \PF{4} read $\hat T_m$ and $E_m$. None reads another
+owners' filesystems and ceilings; \PF{3} and \PF{4} read $\hat T_m$ and $E_m$; \PF{5} reads
+$R$ and the approval results for exports on the same owners as $E_m$. None reads another
 mounter's topology.
 \end{proof}
 
@@ -382,7 +391,7 @@ is never set on an admitted plan. The modes follow from Theorem~\ref{thm:grant} 
 $R^t$.
 \end{proof}
 
-\begin{remark}[Gap: revocation of live mounts]
+\begin{remark}[Admission alone does not revoke live mounts]
 Proposition~\ref{prop:fresh} constrains admission only. If $g_e(m)$ is lowered or removed at
 some $t' > t$, a mount admitted at $t$ is unaffected by the definitions so far. Refusing cached
 plans stops a device from \emph{re-mounting} with revoked access, not from \emph{keeping} a live
@@ -394,10 +403,11 @@ delay from $A$ to the owner.
 \end{remark}
 
 \begin{remark}[Overlapping exports]
-Pre-flight does not forbid two exports of the same owner with $\pi_e \preceq \pi_{e'}$. A file
-under $\pi_{e'}$ is then reachable through both, possibly with different modes, and the
-effective mode depends on which mount a program uses. Either forbid overlap in pre-flight (a
-\PF{5}) or accept per-path modes as intended behavior.
+PeerFS chooses disjoint exports rather than per-path modes. \PF{5} forbids equal or nested
+roots on the same owner, including approved canonical aliases. Different owners may use the
+same path strings because they name different filesystems. As with \PF{2}, canonical roots
+are supplied by the owner, not guessed by the authority. Pre-flight is a point-in-time check;
+race-safe contained serving remains a separate data-plane obligation.
 \end{remark}
 
 \section{Open questions}\label{sec:open}
