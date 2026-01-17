@@ -1,0 +1,39 @@
+common:
+  meta:
+    min_ver: "2.1.0"
+  manifest:
+    name: peerfs
+    type: STATICLIB
+    version: "0.1.0"
+    description: PeerFS control-plane core
+    toolchain: toolchains/debug.yaml
+    tooling:
+      FMT: clang-format-22
+      LINTER: clang-tidy-22
+    dirs:
+      include: [include]
+      source: [src/core]
+      build: build
+  dependencies:
+    - name: yaml-cpp
+      source: system
+  hooks:
+    pre-build:
+      - script: scripts/verify-toolchain.sh
+test:
+  manifest:
+    type: BINARY
+    dirs:
+      source: [src/core, test]
+debug:
+  manifest:
+    toolchain: toolchains/debug.yaml
+sanitized-debug:
+  manifest:
+    toolchain: toolchains/sanitized.yaml
+relwithdebinfo:
+  manifest:
+    toolchain: toolchains/relwithdebinfo.yaml
+release:
+  manifest:
+    toolchain: toolchains/release.yaml

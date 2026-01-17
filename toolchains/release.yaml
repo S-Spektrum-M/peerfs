@@ -1,0 +1,8 @@
+toolchain:
+  name: peerfs-release
+  extends: base.yaml
+  compiler:
+    cxx:
+      flags_append: [-O3, -DNDEBUG, -flto=full, -ffunction-sections, -fdata-sections, -fPIE]
+  linker:
+    flags_append: [-flto=full, -pie, '-Wl,--gc-sections', '-Wl,-z,relro,-z,now,-z,noexecstack', '-Wl,--no-undefined', '-Wl,--hash-style=gnu', '-Wl,-O3', '-Wl,--build-id=sha1']

@@ -1,0 +1,6 @@
+toolchain:
+  name: peerfs-debug
+  extends: base.yaml
+  compiler:
+    cxx:
+      flags_append: [-Og, -g, -fno-omit-frame-pointer]

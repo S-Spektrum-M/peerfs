@@ -1,0 +1,31 @@
+# clang-format 22 bootstrap; see README for deviations from Prescription's v21 baseline.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 120
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: None
+AlignAfterOpenBracket: true
+AlignConsecutiveAssignments: false
+BinPackArguments: false
+BinPackParameters: false
+FixNamespaceComments: true
+IncludeBlocks: Regroup
+IndentCaseLabels: true
+SortIncludes: CaseSensitive
+IncludeCategories:
+  - Regex: '^<[a-z0-9_]+\.h>$'
+    Priority: 1
+  - Regex: '^<sys/.*'
+    Priority: 1
+  - Regex: '^<[a-z0-9_]+>$'
+    Priority: 2
+  - Regex: '^("peerfs/.*"|<peerfs/.*>)'
+    Priority: 4
+  - Regex: '^<.*'
+    Priority: 3
+  - Regex: '^".*"'
+    Priority: 4
+BreakBeforeBinaryOperators: NonAssignment
+AlignOperands: Align
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4

@@ -1,0 +1,8 @@
+toolchain:
+  name: peerfs-relwithdebinfo
+  extends: base.yaml
+  compiler:
+    cxx:
+      flags_append: [-O2, -g, -flto=thin, -ffunction-sections, -fdata-sections, -fPIE]
+  linker:
+    flags_append: [-flto=thin, -pie, '-Wl,--gc-sections', '-Wl,-z,relro,-z,now,-z,noexecstack', '-Wl,--build-id=sha1']

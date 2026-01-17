@@ -1,3 +1,20 @@
+# C++ and Catalyst generated output
+build/
+.catalyst.logs/
+.catalyst.log
+compile_commands.json
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+coverage/
+*.profraw
+*.profdata
+__pycache__/
+
 # LaTeX build output
 main.pdf
 *.aux

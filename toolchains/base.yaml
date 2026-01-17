@@ -1,0 +1,16 @@
+# Linux bootstrap profile: libstdc++ is required by the system yaml-cpp ABI.
+# This deliberate exception to Prescription's libc++ baseline is documented in README.md.
+toolchain:
+  name: peerfs-clang21-linux
+  compiler:
+    c:
+      executable: clang-21
+      flags: [-Wall, -Wextra, -Wpedantic, -Wshadow, -Werror]
+    cxx:
+      executable: clang++-21
+      flags: [-std=c++23, -Wall, -Wextra, -Wpedantic, -Wshadow, -Werror, -Wno-unknown-attributes, -fvisibility=hidden]
+  linker:
+    executable: clang++-21
+    flags: [-fuse-ld=mold]
+  archiver:
+    executable: llvm-ar-21

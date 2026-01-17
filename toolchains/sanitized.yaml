@@ -1,0 +1,9 @@
+toolchain:
+  name: peerfs-sanitized-debug
+  extends: debug.yaml
+  compiler:
+    cxx:
+      flags_remove: [-Og]
+      flags_append: [-O1, '-fsanitize=address,undefined', -fno-optimize-sibling-calls]
+  linker:
+    flags_append: ['-fsanitize=address,undefined']
