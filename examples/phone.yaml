@@ -1,0 +1,2 @@
+# A received empty topology is fresh, unlike an unreachable device's absent topology.
+{}

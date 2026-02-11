@@ -78,4 +78,13 @@ struct [[doc::brief("Compilation result; invalid or stale results are not mount 
     [[nodiscard, doc::brief("Whether all checks passed (does not imply fresh admission).")]] bool valid() const;
 };
 
+[[nodiscard, doc::brief("Parse strict node YAML; errors are values, unknown and duplicate keys fail.")]]
+std::expected<Node, std::string> parseNode(std::string_view yaml);
+[[nodiscard, doc::brief("Parse strict topology YAML using the mounter's explicit home directory.")]]
+std::expected<Topology, std::string> parseTopology(std::string_view yaml, std::string_view home = {});
+[[nodiscard, doc::brief("Parse strict DISK-RULES YAML; duplicate export names remain pre-flight errors.")]]
+std::expected<std::vector<Export>, std::string> parseRules(std::string_view yaml);
+[[nodiscard, doc::brief("Read YAML or evaluate a trusted .pkl file with pkl eval --format yaml, without a shell.")]]
+std::expected<std::string, std::string> loadConfig(std::string_view filename);
+
 } // namespace peerfs

@@ -1,0 +1,8 @@
+homelab:
+  exports:
+    - name: media
+      path: /share
+      grant: { laptop: rw, phone: r }
+    - name: notes
+      path: /home/user/share
+      grant: { laptop: rw }
