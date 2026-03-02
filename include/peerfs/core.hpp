@@ -78,6 +78,10 @@ struct [[doc::brief("Compilation result; invalid or stale results are not mount 
     [[nodiscard, doc::brief("Whether all checks passed (does not imply fresh admission).")]] bool valid() const;
 };
 
+// Called in the owner's filesystem context. Success must return the canonical
+// export root AFTER verifying its ceiling. No answer is a PF2 refusal.
+using OwnerCheck = std::function<std::expected<Path, std::string>(const Export &)>;
+
 [[nodiscard, doc::brief("Parse strict node YAML; errors are values, unknown and duplicate keys fail.")]]
 std::expected<Node, std::string> parseNode(std::string_view yaml);
 [[nodiscard, doc::brief("Parse strict topology YAML using the mounter's explicit home directory.")]]
@@ -86,5 +90,13 @@ std::expected<Topology, std::string> parseTopology(std::string_view yaml, std::s
 std::expected<std::vector<Export>, std::string> parseRules(std::string_view yaml);
 [[nodiscard, doc::brief("Read YAML or evaluate a trusted .pkl file with pkl eval --format yaml, without a shell.")]]
 std::expected<std::string, std::string> loadConfig(std::string_view filename);
+[[nodiscard, doc::brief("Compile a single device plan with isolated PF1-PF5 errors and fail-closed owner checks.")]]
+Plan compilePlan(std::span<const Export> rules,
+                 std::string_view device,
+                 const std::optional<Topology> &topology,
+                 const OwnerCheck &owner_check);
+[[nodiscard, doc::brief("Owner-local PF2: canonicalize export and ceiling paths, require an existing directory.")]]
+std::expected<Path, std::string> checkLocalExport(const Export &export_rule, const Node &node);
+[[nodiscard, doc::brief("Serialize a plan and all refusal reasons as YAML.")]] std::string renderPlan(const Plan &plan);
 
 } // namespace peerfs
