@@ -20,6 +20,11 @@ common:
   hooks:
     pre-build:
       - script: scripts/verify-toolchain.sh
+cli:
+  manifest:
+    type: BINARY
+    dirs:
+      source: [src/core, src/cli]
 test:
   manifest:
     type: BINARY

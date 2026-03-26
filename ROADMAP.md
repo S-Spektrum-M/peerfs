@@ -31,13 +31,13 @@ These block parts of the build. Each one should end up in the README, and in `ma
 
 Pure logic, no network.
 
-- [ ] Path type: component lists, component-wise `⪯`, normalization, explicit-device-home `~` expansion.
-- [ ] Strict parsers and validation for `node.yaml`, `topology.yaml`, `DISK-RULES.yaml`.
-- [ ] Pkl adapter via `pkl eval` → YAML.
-- [ ] Plan compiler: rules + topology (or the default topology, flagged stale) → plan.
-- [ ] Pre-flight checks PF1, PF3, PF4 and PF5; fail-closed PF2 owner callback and local canonical-directory helper.
-- [ ] Deterministic property tests that mirror the theorems: grant faithfulness, unambiguous resolution, isolation.
-- [ ] Offline `peerfs plan` inspection CLI, examples, Catalyst profiles and sanitizer tests.
+- [x] Path type: component lists, component-wise `⪯`, normalization, explicit-device-home `~` expansion.
+- [x] Strict parsers and validation for `node.yaml`, `topology.yaml`, `DISK-RULES.yaml`.
+- [x] Pkl adapter via `pkl eval` → YAML.
+- [x] Plan compiler: rules + topology (or the default topology, flagged stale) → plan.
+- [x] Pre-flight checks PF1, PF3, PF4 and PF5; fail-closed PF2 owner callback and local canonical-directory helper.
+- [x] Deterministic property tests that mirror the theorems: grant faithfulness, unambiguous resolution, isolation.
+- [x] Offline `peerfs plan` inspection CLI, examples, Catalyst profiles and sanitizer tests.
 
 **Done when:** the README's homelab / laptop / phone example compiles to the plans and views shown there, and every pre-flight error case has a test.
 
