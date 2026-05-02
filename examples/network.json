@@ -1,0 +1,12 @@
+{
+  "self": "laptop",
+  "authority": "control",
+  "authority_port": 7443,
+  "tailscale_socket": "/var/run/tailscale/tailscaled.sock",
+  "peers": {
+    "control": { "id": "REPLACE_WITH_CONTROL_STABLE_ID", "address": "100.100.0.1", "port": 7444 },
+    "homelab": { "id": "REPLACE_WITH_HOMELAB_STABLE_ID", "address": "100.100.0.2", "port": 7444 },
+    "laptop": { "id": "REPLACE_WITH_LAPTOP_STABLE_ID", "address": "100.100.0.3", "port": 7444 },
+    "phone": { "id": "REPLACE_WITH_PHONE_STABLE_ID", "address": "100.100.0.4", "port": 7444 }
+  }
+}

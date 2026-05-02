@@ -17,6 +17,8 @@ common:
   dependencies:
     - name: yaml-cpp
       source: system
+  features:
+    test_transport: false
   hooks:
     pre-build:
       - script: scripts/verify-toolchain.sh
@@ -25,6 +27,20 @@ cli:
     type: BINARY
     dirs:
       source: [src/core, src/cli]
+live:
+  manifest:
+    dirs:
+      source: [src/core, src/live]
+  dependencies:
+    - name: libcurl
+      source: system
+    - name: fuse3
+      source: system
+    - name: nlohmann_json
+      source: system
+integration:
+  features:
+    test_transport: true
 test:
   manifest:
     type: BINARY

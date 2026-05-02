@@ -1,4 +1,10 @@
 lockfile_version: 1.1.0
 dependencies:
+  - name: nlohmann_json
+    source: system
+  - name: fuse3
+    source: system
+  - name: libcurl
+    source: system
   - name: yaml-cpp
     source: system
