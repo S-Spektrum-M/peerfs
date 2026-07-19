@@ -26,7 +26,14 @@ cli:
   manifest:
     type: BINARY
     dirs:
-      source: [src/core, src/cli]
+      source: [src/core, src/live, src/cli]
+  dependencies:
+    - name: libcurl
+      source: system
+    - name: fuse3
+      source: system
+    - name: nlohmann_json
+      source: system
 live:
   manifest:
     dirs:

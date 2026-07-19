@@ -4,7 +4,10 @@
 #include <string>
 #include <string_view>
 
+#include <nlohmann/json.hpp>
+
 #include <peerfs/core.hpp>
+#include <peerfs/live.hpp>
 
 namespace peerfs {
 namespace {
@@ -22,6 +25,15 @@ Without --topology, the default placement is used and the result is stale.
 Other owners fail PF2 unless --preview is explicitly selected.
 YAML and trusted .pkl inputs are supported. Pkl must be installed separately.
 Exit: 0 valid inspection result, 1 refused plan, 2 usage/configuration error.
+
+Live read-only commands (foreground):
+  peerfs authority --network FILE --rules FILE --state /absolute/private/directory
+  peerfs export --network FILE --node FILE
+  peerfs status --network FILE
+  peerfs admit --network FILE --topology FILE [--home /device/home]
+  peerfs mount --network FILE --topology FILE --export NAME [--home /device/home]
+Live commands authenticate through the local tailscaled socket and enrolled StableIDs.
+Each mount process handles one export; use fusermount3 -u TARGET to unmount.
 )";
 
 } // namespace
@@ -30,6 +42,59 @@ Exit: 0 valid inspection result, 1 refused plan, 2 usage/configuration error.
 int main(int argc, char **argv) {
     if (argc == 2 && std::string_view(argv[1]) == "--help") {
         std::cout << peerfs::USAGE;
+        return 0;
+    }
+    if (argc >= 2
+        && (std::string_view(argv[1]) == "authority" || std::string_view(argv[1]) == "export"
+            || std::string_view(argv[1]) == "admit" || std::string_view(argv[1]) == "mount"
+            || std::string_view(argv[1]) == "status")) {
+        std::string command = argv[1];
+        std::map<std::string, std::string> arguments;
+        for (int index = 2; index < argc; ++index) {
+            std::string key = argv[index];
+            bool allowed = key == "--network" || (command == "authority" && (key == "--rules" || key == "--state"))
+                           || (command == "export" && key == "--node")
+                           || ((command == "admit" || command == "mount") && (key == "--topology" || key == "--home"))
+                           || (command == "mount" && key == "--export");
+            if (!allowed || ++index >= argc || !arguments.emplace(key, argv[index]).second) {
+                std::cerr << "invalid, missing or duplicate live-command argument\n" << peerfs::USAGE;
+                return peerfs::INPUT_ERROR;
+            }
+        }
+        bool complete = arguments.contains("--network")
+                        && (command != "authority" || (arguments.contains("--rules") && arguments.contains("--state")))
+                        && (command != "export" || arguments.contains("--node"))
+                        && ((command != "admit" && command != "mount") || arguments.contains("--topology"))
+                        && (command != "mount" || arguments.contains("--export"));
+        if (!complete) {
+            std::cerr << peerfs::USAGE;
+            return peerfs::INPUT_ERROR;
+        }
+        if (command == "admit" || command == "status") {
+            auto response =
+                command == "status"
+                    ? peerfs::authorityStatus(arguments["--network"])
+                    : peerfs::admitDevice(arguments["--network"], arguments["--topology"], arguments["--home"]);
+            if (!response) {
+                std::cerr << response.error() << '\n';
+                return peerfs::INPUT_ERROR;
+            }
+            std::cout << *response;
+            return command == "status" || nlohmann::json::parse(*response).at("admitted").get<bool>()
+                       ? 0
+                       : peerfs::INVALID_PLAN;
+        }
+        auto result =
+            command == "authority"
+                ? peerfs::serveAuthority(arguments["--network"], arguments["--rules"], arguments["--state"])
+            : command == "export"
+                ? peerfs::serveExporter(arguments["--network"], arguments["--node"])
+                : peerfs::mountExport(
+                      arguments["--network"], arguments["--topology"], arguments["--home"], arguments["--export"]);
+        if (!result) {
+            std::cerr << result.error() << '\n';
+            return peerfs::INPUT_ERROR;
+        }
         return 0;
     }
     if (argc < 2 || std::string_view(argv[1]) != "plan") {
