@@ -1,0 +1,11 @@
+[Unit]
+Description=Reconcile PeerFS grants and recover invalidated mounts
+
+[Timer]
+OnStartupSec=20s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=peerfs-mounts-sync.service
+
+[Install]
+WantedBy=timers.target

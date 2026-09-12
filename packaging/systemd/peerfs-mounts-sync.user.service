@@ -1,0 +1,9 @@
+[Unit]
+Description=Discover and reconcile all granted PeerFS mounts
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/peerfs-sync-mounts --root /mnt/peerfs
+TimeoutStartSec=3min
+NoNewPrivileges=yes
+UMask=0077

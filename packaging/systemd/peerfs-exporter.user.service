@@ -1,0 +1,14 @@
+[Unit]
+Description=PeerFS exporter (per-user deployment)
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/peerfs export --network %h/.config/peerfs/network.json --node %h/.config/peerfs/node.yaml
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target

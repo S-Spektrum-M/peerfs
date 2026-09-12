@@ -1,0 +1,18 @@
+[Unit]
+Description=PeerFS read-only export %i
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/peerfs mount --network %h/.config/peerfs/network.json --topology %h/.config/peerfs/topology.yaml --home %h --export %i
+Restart=always
+RestartSec=10
+# V1 sessions expire after one hour. Refresh by an explicit remount before expiry.
+# This interrupts existing open descriptors; it is not transparent lease renewal.
+RuntimeMaxSec=45min
+TimeoutStopSec=20
+UMask=0077
+# Do not use NoNewPrivileges here: fusermount3 may need its installed setuid helper.
+
+[Install]
+WantedBy=default.target

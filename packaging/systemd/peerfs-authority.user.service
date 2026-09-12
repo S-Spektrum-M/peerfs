@@ -1,0 +1,14 @@
+[Unit]
+Description=PeerFS authority (per-user deployment)
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/peerfs authority --network %h/.config/peerfs/network.json --rules %h/.config/peerfs/DISK-RULES.yaml --state %h/.local/state/peerfs-authority
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target

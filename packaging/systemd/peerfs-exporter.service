@@ -1,0 +1,23 @@
+[Unit]
+Description=PeerFS read-only exporter
+After=tailscaled.service network-online.target
+Wants=network-online.target
+Requires=tailscaled.service
+
+[Service]
+Type=simple
+User=peerfs
+Group=peerfs
+ExecStart=/usr/local/bin/peerfs export --network /etc/peerfs/network.json --node /etc/peerfs/node.yaml
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

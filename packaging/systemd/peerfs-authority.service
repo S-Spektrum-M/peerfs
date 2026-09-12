@@ -1,0 +1,26 @@
+[Unit]
+Description=PeerFS read-only authority
+After=tailscaled.service network-online.target
+Wants=network-online.target
+Requires=tailscaled.service
+
+[Service]
+Type=simple
+User=peerfs
+Group=peerfs
+StateDirectory=peerfs-authority
+StateDirectoryMode=0700
+ExecStart=/usr/local/bin/peerfs authority --network /etc/peerfs/network.json --rules /etc/peerfs/DISK-RULES.yaml --state /var/lib/peerfs-authority
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ReadWritePaths=/var/lib/peerfs-authority
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
