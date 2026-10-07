@@ -410,6 +410,52 @@ are supplied by the owner, not guessed by the authority. Pre-flight is a point-i
 race-safe contained serving remains a separate data-plane obligation.
 \end{remark}
 
+\section{Implemented read-only v1 runtime}
+
+The Linux v1 implements file RPCs over TCP carried by system Tailscale. Each endpoint resolves
+the actual socket peer address through the local Tailscale WhoIs API and matches its StableID
+and address against an administrator-owned enrollment registry. Device names in request bodies
+are not authentication. The exporter runs as a non-root account and presents only files that
+account can read; the mounter presents local UID/GID ownership. Although the control-plane
+compiler preserves grants exactly, the v1 runtime intersects them with its supported operation
+set: read-only. No write operation is implemented, even for an $\RW$ grant.
+
+A successful admission creates an ephemeral session
+$s = (m, v, H, d)$: authenticated mounter $m$, current persisted rule version $v$, approved
+owner/root handles $H$, and expiry $d$. Sessions are not persisted. Before each file operation,
+the owner authenticates the mounter and asks the authenticated authority to authorize
+$(s,m,\nu_e)$. The authority permits it only if the session is unexpired, its version equals
+the current rule version, the caller is the approved owner, and the current grant still
+permits reading. Changed valid rule text increments the version and invalidates all sessions;
+unreadable or invalid rules deny authorization. Authority or owner restart requires fresh
+admission because sessions or pinned root handles have been lost.
+
+Thus revocation is enforced at the authorization decision of each operation, rather than by
+pushing grants to an owner cache. An operation already authorized before a rule change may
+finish. No operation whose authorization observes the new version can use an old session.
+Authority unavailability denies both admission and subsequent file operations. FUSE entry and
+attribute caches are disabled and file reads use direct I/O; previously delivered application
+buffers cannot be revoked. This is a conservative availability/performance tradeoff, not a
+lease-based or offline consistency contract.
+
+Ceilings and approved roots are pinned directory capabilities. Serving opens paths relative
+to those handles with Linux \texttt{openat2}, using \texttt{RESOLVE\_BENEATH},
+\texttt{RESOLVE\_NO\_MAGICLINKS} and \texttt{RESOLVE\_NO\_XDEV}. Absolute links, parent
+traversal and nested mount crossings are refused; regular files and directories are the only
+supported objects. Replacing a root pathname cannot redirect an existing handle. A directory
+renamed after pinning retains that capability until expiry or revocation: the static
+name-tree theorem above is not a proof of dynamic pathname-based revocation. Changing ceilings
+requires restarting the exporter. File contents may change between reads; v1 makes no snapshot,
+write-locking or mmap consistency promise.
+
+The runtime is locally integration-tested with a mock identity service and actual TCP/FUSE,
+including open-file revocation and symlink-swap tests. A two-machine deployment over real
+Tailscale also passed binary reads, write/escape refusal, open-file revocation and automatic
+restart-recovery checks. Optional user services perform explicit periodic remounts, not
+transparent lease renewal; open descriptors are interrupted. These checks do not replace a
+production security audit or broader load testing. See \texttt{docs/v1.md} for deployment and
+protocol limits.
+
 \section{Open questions}\label{sec:open}
 
 \begin{enumerate}[(i)]
